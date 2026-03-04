@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -54,7 +54,8 @@
 
   .input-row { display: flex; gap: 12px; }
 
-  input[type="text"] {
+  input[type="text"],
+  input[type="password"] {
     flex: 1;
     background: #0f0f13;
     border: 1px solid #2a2a3a;
@@ -66,8 +67,10 @@
     transition: border-color 0.2s;
   }
 
-  input[type="text"]:focus { border-color: #7c3aed; }
-  input[type="text"]::placeholder { color: #444; }
+  input[type="text"]:focus,
+  input[type="password"]:focus { border-color: #7c3aed; }
+  input[type="text"]::placeholder,
+  input[type="password"]::placeholder { color: #444; }
 
   .btn {
     padding: 12px 24px;
@@ -273,18 +276,22 @@
   <div class="logo">✦</div>
   <div>
     <h1>Social Content Generator</h1>
-    <p>Тренды → Посты за минуты, без Co-work</p>
+    <p>Trends → Posts in minutes, no Co-work needed</p>
   </div>
 </div>
 
 <div class="container">
 
   <div class="card">
-    <div class="card-title">Ваша ниша</div>
+    <div class="card-title">Claude API key</div>
+    <div class="input-row" style="margin-bottom: 16px;">
+      <input type="password" id="apiKeyInput" placeholder="Paste your Anthropic API key (console.anthropic.com)" autocomplete="off" />
+    </div>
+    <div class="card-title">Your niche</div>
     <div class="input-row">
-      <input type="text" id="nicheInput" placeholder="Например: AI in business, SaaS marketing, Web3..." value="AI in business" />
+      <input type="text" id="nicheInput" placeholder="E.g.: AI in business, SaaS marketing, Web3..." value="AI in business" />
       <button class="btn btn-primary" id="generateBtn" onclick="generate()">
-        Генерировать →
+        Generate →
       </button>
     </div>
     <div class="platforms">
@@ -296,8 +303,8 @@
   <div class="status-bar" id="statusBar">
     <div class="spinner"></div>
     <div>
-      <div class="status-text" id="statusText">Ищем тренды...</div>
-      <div class="status-step" id="statusStep">Анализируем актуальные посты</div>
+      <div class="status-text" id="statusText">Searching for trends...</div>
+      <div class="status-step" id="statusStep">Analyzing recent posts</div>
     </div>
   </div>
 
@@ -306,8 +313,8 @@
   <div id="output">
     <div class="empty-state">
       <div class="empty-icon">📡</div>
-      <h3>Введите нишу и нажмите «Генерировать»</h3>
-      <p>Система найдет горячие тренды и создаст<br>готовые посты для LinkedIn и X</p>
+      <h3>Enter your niche and hit Generate</h3>
+      <p>The system will find hot trends and create<br>ready-to-post content for LinkedIn and X</p>
     </div>
   </div>
 
@@ -344,7 +351,7 @@ async function generate() {
   const wantX = platforms.x;
 
   if (!wantLinkedIn && !wantX) {
-    showError('Выберите хотя бы одну платформу.');
+    showError('Please select at least one platform.');
     return;
   }
 
@@ -353,23 +360,23 @@ async function generate() {
   document.getElementById('statusBar').classList.add('visible');
   document.getElementById('output').innerHTML = '';
 
-  setStatus('Ищем актуальные тренды...', `Ниша: "${niche}"`);
+  setStatus('Searching for trending topics...', `Niche: "${niche}"`);
 
   const platformList = [];
-  if (wantLinkedIn) platformList.push('LinkedIn (3 поста)');
-  if (wantX) platformList.push('X/Twitter (3 поста, до 280 символов каждый)');
+  if (wantLinkedIn) platformList.push('LinkedIn (3 posts)');
+  if (wantX) platformList.push('X/Twitter (3 posts, max 280 characters each)');
 
-  const systemPrompt = `Ты — эксперт по контент-маркетингу и трендам в социальных сетях. Ты создаешь вирусный, человечный контент на основе реальных трендов.
+  const systemPrompt = `You are an expert content marketer and social media trend analyst. You create viral, human-sounding content based on real current trends.
 
-Твои посты:
-- Звучат как живой человек, не как ИИ
-- Не используют клише ("В современном мире...", "Давайте поговорим о...")
-- Не злоупотребляют эмодзи (максимум 1-2 уместных)
-- Разные по формату: одни — мнение, другие — инсайт, третьи — вопрос к аудитории
-- LinkedIn посты: 150-300 слов, профессиональный но живой тон
-- X посты: строго до 280 символов, острые и цепляющие
+Your posts:
+- Sound like a real person, not an AI
+- Avoid clichés ("In today's world...", "Let's talk about...")
+- Use emojis sparingly (max 1-2 if fitting)
+- Vary in format: some are insights, some are opinions, some spark discussion
+- LinkedIn posts: 150-300 words, professional but conversational tone
+- X posts: strictly under 280 characters, sharp and punchy
 
-Отвечай ТОЛЬКО в формате JSON (без markdown-обёртки, без пояснений), строго по схеме:
+Respond ONLY in JSON format (no markdown wrapper, no explanation), strictly following this schema:
 {
   "trends": [
     {"rank": 1, "topic": "..."},
@@ -387,42 +394,51 @@ async function generate() {
   ]
 }`;
 
-  const userPrompt = `Используй веб-поиск чтобы найти самые горячие тренды прямо сейчас в нише: "${niche}".
+  const userPrompt = `Use web search to find the hottest trends right now in this niche: "${niche}".
 
-Найди актуальные посты, новости и дискуссии за последние 7 дней.
+Find relevant posts, news, and discussions from the last 7 days.
 
-Затем:
-1. Определи топ-5 самых горячих тем
-2. Напиши посты для: ${platformList.join(' и ')}
+Then:
+1. Identify the top 5 hottest topics
+2. Write posts for: ${platformList.join(' and ')}
 
-Форматы постов:
-- Один "educational" (инсайт или факт)  
-- Один "opinion" (непопулярное мнение или спорная точка зрения)
-- Один "engaging" (вопрос или призыв к дискуссии)
+Post formats:
+- One "educational" (insight or fact)
+- One "opinion" (unpopular or contrarian take)
+- One "engaging" (question or call to discussion)
 
-Верни JSON строго по схеме из системного промпта.`;
+Return JSON strictly following the schema from the system prompt. All post content must be in English.`;
+
+  const apiKey = document.getElementById('apiKeyInput').value.trim();
+  if (!apiKey) {
+    showError('Enter your Claude API key. Get one at console.anthropic.com');
+    document.getElementById('generateBtn').disabled = false;
+    document.getElementById('statusBar').classList.remove('visible');
+    return;
+  }
 
   try {
-    setStatus('Запрос к Claude с веб-поиском...', 'Это займёт 30-60 секунд');
+    setStatus('Calling Claude with web search...', 'This will take 30–60 seconds');
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const requestBody = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 3000,
+      system: systemPrompt,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{ role: 'user', content: userPrompt }]
+    };
+    const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 3000,
-        system: systemPrompt,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: userPrompt }]
-      })
+      body: JSON.stringify({ apiKey, body: requestBody })
     });
 
     if (!response.ok) {
-      const err = await response.json();
+      const err = await response.json().catch(() => ({}));
       throw new Error(err.error?.message || `HTTP ${response.status}`);
     }
 
-    setStatus('Анализируем тренды и пишем посты...', 'Почти готово');
+    setStatus('Analyzing trends and writing posts...', 'Almost done');
 
     const data = await response.json();
 
@@ -436,17 +452,17 @@ async function generate() {
     let parsed;
     try {
       const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('JSON не найден в ответе');
+      if (!jsonMatch) throw new Error('No JSON found in response');
       let clean = jsonMatch[0].replace(/```json|```/g, '').trim();
       parsed = JSON.parse(clean);
     } catch (e) {
-      throw new Error('Не удалось разобрать ответ. Попробуйте ещё раз.');
+      throw new Error('Could not parse response. Please try again.');
     }
 
     renderResults(parsed, wantLinkedIn, wantX);
 
   } catch (err) {
-    showError('Ошибка: ' + err.message);
+    showError('Error: ' + err.message);
   } finally {
     document.getElementById('generateBtn').disabled = false;
     document.getElementById('statusBar').classList.remove('visible');
@@ -465,7 +481,7 @@ function renderResults(data, wantLinkedIn, wantX) {
 
   if (trends.length) {
     html += `<div class="trends-section card">
-      <div class="card-title">🔥 Горячие тренды сегодня</div>
+      <div class="card-title">🔥 Today's hot trends</div>
       <div class="trends-grid">`;
     trends.forEach(t => {
       html += `<div class="trend-chip">
@@ -477,13 +493,13 @@ function renderResults(data, wantLinkedIn, wantX) {
   }
 
   if (posts.length) {
-    html += `<div class="section-label">Готовые посты (${posts.length})</div>`;
+    html += `<div class="section-label">Ready to post (${posts.length})</div>`;
     html += `<div class="posts-section">`;
     posts.forEach((post, i) => {
       const isLinkedIn = post.platform === 'linkedin';
       const platformLabel = isLinkedIn ? 'LinkedIn' : 'X (Twitter)';
       const badgeClass = isLinkedIn ? 'badge-linkedin' : 'badge-x';
-      const typeMap = { educational: 'Образовательный', opinion: 'Мнение', engaging: 'Вовлечение' };
+      const typeMap = { educational: 'Educational', opinion: 'Opinion', engaging: 'Engaging' };
       const typeLabel = typeMap[post.type] || post.type;
       const chars = post.content.length;
 
@@ -494,8 +510,8 @@ function renderResults(data, wantLinkedIn, wantX) {
             <span class="post-type">${typeLabel}</span>
           </div>
           <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:11px;color:#444">${chars} симв.</span>
-            <button class="btn-copy btn" onclick="copyPost(this, ${i})">Копировать</button>
+            <span style="font-size:11px;color:#444">${chars} chars</span>
+            <button class="btn-copy btn" onclick="copyPost(this, ${i})">Copy</button>
           </div>
         </div>
         <div class="post-body" id="post-content-${i}">${escHtml(post.content)}</div>
@@ -506,8 +522,8 @@ function renderResults(data, wantLinkedIn, wantX) {
   } else {
     html = `<div class="empty-state">
       <div class="empty-icon">🤔</div>
-      <h3>Постов не найдено</h3>
-      <p>Попробуйте другую нишу или перезапустите.</p>
+      <h3>No posts found</h3>
+      <p>Try a different niche or run again.</p>
     </div>`;
   }
 
@@ -517,8 +533,8 @@ function renderResults(data, wantLinkedIn, wantX) {
 function copyPost(btn, idx) {
   const el = document.getElementById('post-content-' + idx);
   navigator.clipboard.writeText(el.textContent).then(() => {
-    btn.textContent = '✓ Скопировано';
-    setTimeout(() => btn.textContent = 'Копировать', 2000);
+    btn.textContent = '✓ Copied';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
   });
 }
 
