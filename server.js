@@ -7,7 +7,7 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(join(__dirname, 'public')));
 
 app.get('/', (req, res) => res.redirect('/index.html'));
 
