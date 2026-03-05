@@ -9,7 +9,7 @@ const PORT = 3000;
 app.use(express.json());
 app.use(express.static(__dirname));
 
-app.get('/', (req, res) => res.redirect('/project.html'));
+app.get('/', (req, res) => res.redirect('/index.html'));
 
 // Proxy to Anthropic API (avoids CORS - API key never exposed to browser in direct call)
 app.post('/api/chat', async (req, res) => {
