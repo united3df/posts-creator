@@ -268,6 +268,69 @@
   }
 
   .error-msg.visible { display: block; }
+
+  .customize-toggle {
+    background: none;
+    border: none;
+    color: #7c3aed;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 8px 0;
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .customize-toggle:hover { color: #a78bfa; }
+  .customize-toggle .arrow { transition: transform 0.2s; }
+  .customize-toggle.expanded .arrow { transform: rotate(90deg); }
+
+  .customize-section {
+    display: none;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #1e1e2e;
+  }
+  .customize-section.visible { display: block; }
+
+  .customize-row {
+    margin-bottom: 16px;
+  }
+  .customize-row:last-child { margin-bottom: 0; }
+  .customize-row label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 6px;
+  }
+  select {
+    width: 100%;
+    max-width: 280px;
+    background: #0f0f13;
+    border: 1px solid #2a2a3a;
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: #e8e8f0;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+  }
+  select:focus { border-color: #7c3aed; }
+  textarea {
+    width: 100%;
+    min-height: 80px;
+    background: #0f0f13;
+    border: 1px solid #2a2a3a;
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: #e8e8f0;
+    font-size: 14px;
+    outline: none;
+    resize: vertical;
+    font-family: inherit;
+  }
+  textarea:focus { border-color: #7c3aed; }
+  textarea::placeholder { color: #444; }
 </style>
 </head>
 <body>
@@ -298,6 +361,35 @@
       <button class="platform-toggle active" id="toggle-linkedin" onclick="togglePlatform('linkedin')">LinkedIn</button>
       <button class="platform-toggle active" id="toggle-x" onclick="togglePlatform('x')">X (Twitter)</button>
     </div>
+    <button type="button" class="customize-toggle" id="customizeToggle" onclick="toggleCustomize()">
+      <span class="arrow">▶</span> Customize prompt
+    </button>
+    <div class="customize-section" id="customizeSection">
+      <div class="customize-row">
+        <label>Language</label>
+        <select id="langSelect">
+          <option value="en">English</option>
+          <option value="ru">Russian</option>
+        </select>
+      </div>
+      <div class="customize-row">
+        <label>Tone</label>
+        <select id="toneSelect">
+          <option value="professional">Professional</option>
+          <option value="casual">Casual</option>
+          <option value="provocative">Provocative</option>
+          <option value="thoughtful">Thoughtful</option>
+        </select>
+      </div>
+      <div class="customize-row">
+        <label>Target audience (optional)</label>
+        <input type="text" id="audienceInput" placeholder="E.g.: startup founders, B2B marketers..." />
+      </div>
+      <div class="customize-row">
+        <label>Custom instructions (optional)</label>
+        <textarea id="customInstructions" placeholder="Add any extra instructions for the AI. E.g.: Avoid mentioning competitors, focus on ROI..."></textarea>
+      </div>
+    </div>
   </div>
 
   <div class="status-bar" id="statusBar">
@@ -326,6 +418,13 @@ const platforms = { linkedin: true, x: true };
 function togglePlatform(p) {
   platforms[p] = !platforms[p];
   document.getElementById('toggle-' + p).classList.toggle('active', platforms[p]);
+}
+
+function toggleCustomize() {
+  const section = document.getElementById('customizeSection');
+  const btn = document.getElementById('customizeToggle');
+  section.classList.toggle('visible');
+  btn.classList.toggle('expanded', section.classList.contains('visible'));
 }
 
 function setStatus(text, step) {
@@ -366,6 +465,22 @@ async function generate() {
   if (wantLinkedIn) platformList.push('LinkedIn (3 posts)');
   if (wantX) platformList.push('X/Twitter (3 posts, max 280 characters each)');
 
+  const lang = document.getElementById('langSelect').value;
+  const tone = document.getElementById('toneSelect').value;
+  const audience = document.getElementById('audienceInput').value.trim();
+  const customInstructions = document.getElementById('customInstructions').value.trim();
+
+  const langNote = lang === 'ru' ? 'All post content must be in Russian.' : 'All post content must be in English.';
+  const toneMap = {
+    professional: 'professional but conversational',
+    casual: 'casual and friendly',
+    provocative: 'provocative and bold, spark debate',
+    thoughtful: 'thoughtful and reflective'
+  };
+  const toneDesc = toneMap[tone] || toneMap.professional;
+  const audienceNote = audience ? `Target audience: ${audience}.` : '';
+  const customNote = customInstructions ? `\nAdditional instructions: ${customInstructions}` : '';
+
   const systemPrompt = `You are an expert content marketer and social media trend analyst. You create viral, human-sounding content based on real current trends.
 
 Your posts:
@@ -373,8 +488,10 @@ Your posts:
 - Avoid clichés ("In today's world...", "Let's talk about...")
 - Use emojis sparingly (max 1-2 if fitting)
 - Vary in format: some are insights, some are opinions, some spark discussion
-- LinkedIn posts: 150-300 words, professional but conversational tone
+- Tone: ${toneDesc}
+- LinkedIn posts: 150-300 words
 - X posts: strictly under 280 characters, sharp and punchy
+${audienceNote ? `- ${audienceNote}` : ''}${customNote}
 
 Respond ONLY in JSON format (no markdown wrapper, no explanation), strictly following this schema:
 {
@@ -394,7 +511,8 @@ Respond ONLY in JSON format (no markdown wrapper, no explanation), strictly foll
   ]
 }`;
 
-  const userPrompt = `Use web search to find the hottest trends right now in this niche: "${niche}".
+  const audienceContext = audience ? ` Focus on content relevant to: ${audience}.` : '';
+  const userPrompt = `Use web search to find the hottest trends right now in this niche: "${niche}".${audienceContext}
 
 Find relevant posts, news, and discussions from the last 7 days.
 
@@ -407,7 +525,7 @@ Post formats:
 - One "opinion" (unpopular or contrarian take)
 - One "engaging" (question or call to discussion)
 
-Return JSON strictly following the schema from the system prompt. All post content must be in English.`;
+Return JSON strictly following the schema from the system prompt. ${langNote}`;
 
   const apiKey = document.getElementById('apiKeyInput').value.trim();
   if (!apiKey) {
