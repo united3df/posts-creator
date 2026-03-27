@@ -346,7 +346,15 @@
 <div class="container">
 
   <div class="card">
-    <div class="card-title">Claude API key</div>
+    <div class="card-title">AI provider</div>
+    <div class="customize-row" style="margin-bottom: 16px;">
+      <label for="providerSelect">Model</label>
+      <select id="providerSelect">
+        <option value="anthropic">Claude (Sonnet 4 + web search)</option>
+        <option value="gemini">Gemini 3 Flash Preview + Google Search</option>
+      </select>
+    </div>
+    <div class="card-title">API key</div>
     <div class="input-row" style="margin-bottom: 16px;">
       <input type="password" id="apiKeyInput" placeholder="Paste your Anthropic API key (console.anthropic.com)" autocomplete="off" />
     </div>
@@ -527,29 +535,53 @@ Post formats:
 
 Return JSON strictly following the schema from the system prompt. ${langNote}`;
 
+  const provider = document.getElementById('providerSelect').value;
   const apiKey = document.getElementById('apiKeyInput').value.trim();
   if (!apiKey) {
-    showError('Enter your Claude API key. Get one at console.anthropic.com');
+    showError(
+      provider === 'gemini'
+        ? 'Enter your Gemini API key. Get one at aistudio.google.com/apikey'
+        : 'Enter your Claude API key. Get one at console.anthropic.com'
+    );
     document.getElementById('generateBtn').disabled = false;
     document.getElementById('statusBar').classList.remove('visible');
     return;
   }
 
   try {
-    setStatus('Calling Claude with web search...', 'This will take 30–60 seconds');
+    if (provider === 'gemini') {
+      setStatus('Calling Gemini 3 Flash Preview with Google Search...', 'This may take 30–60 seconds');
+    } else {
+      setStatus('Calling Claude with web search...', 'This will take 30–60 seconds');
+    }
 
-    const requestBody = {
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 3000,
-      system: systemPrompt,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      messages: [{ role: 'user', content: userPrompt }]
-    };
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, body: requestBody })
-    });
+    let response;
+    if (provider === 'gemini') {
+      const geminiBody = {
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        tools: [{ google_search: {} }],
+        generationConfig: { maxOutputTokens: 8192 }
+      };
+      response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'gemini', apiKey, body: geminiBody })
+      });
+    } else {
+      const requestBody = {
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 3000,
+        system: systemPrompt,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: userPrompt }]
+      };
+      response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'anthropic', apiKey, body: requestBody })
+      });
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
@@ -663,6 +695,18 @@ function escHtml(s) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+function syncApiKeyPlaceholder() {
+  const sel = document.getElementById('providerSelect');
+  const input = document.getElementById('apiKeyInput');
+  input.placeholder =
+    sel.value === 'gemini'
+      ? 'Paste your Gemini API key (aistudio.google.com/apikey)'
+      : 'Paste your Anthropic API key (console.anthropic.com)';
+}
+
+document.getElementById('providerSelect').addEventListener('change', syncApiKeyPlaceholder);
+syncApiKeyPlaceholder();
 
 document.getElementById('nicheInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') generate();
